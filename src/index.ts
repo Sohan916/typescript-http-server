@@ -49,11 +49,11 @@ app.use(middlewareLogResponses);
 
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
 
-app.get("/healthz", handleReadiness);
+app.get("/api/healthz", handleReadiness);
 
-app.get("/metrics", handleCounts);
+app.get("/api/metrics", handleCounts);
 
-app.get("/reset", handleResetCount);
+app.get("/api/reset", handleResetCount);
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
