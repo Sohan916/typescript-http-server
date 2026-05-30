@@ -5,10 +5,26 @@ const handleReadiness = (req: Request, res: Response) => {
   res.status(200).send("OK");
 };
 
+const middlewareLogResponses = (
+  req: Request,
+  res: Response,
+  next: VoidFunction,
+) => {
+  res.on("finish", () => {
+    const statusCode = res.statusCode;
+    if (statusCode !== 200) {
+      console.log(`[NON-OK] ${req.method} ${req.url} - Status: ${statusCode}`);
+    }
+  });
+
+  next();
+};
+
 const app = express();
 const PORT = 8080;
 
 app.use("/app", express.static("./src/app"));
+app.use(middlewareLogResponses);
 
 app.get("/healthz", handleReadiness);
 
