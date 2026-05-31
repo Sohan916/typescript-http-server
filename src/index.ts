@@ -24,6 +24,40 @@ const handleResetCount = (req: Request, res: Response) => {
   res.send();
 };
 
+const handleValidation = (req: Request, res: Response) => {
+  let body = "";
+
+  req.on("data", (chunk) => {
+    body += chunk;
+  });
+
+  req.on("end", () => {
+    let errorResp = JSON.stringify({
+      error: "Something went wrong",
+    });
+
+    try {
+      const parsedBody = JSON.parse(body);
+      res.header("Content-Type", "application/json");
+
+      console.log(parsedBody);
+      if (parsedBody.body.length > 140) {
+        errorResp = JSON.stringify({
+          error: "Chirp is too long",
+        });
+        res.status(400).send(errorResp);
+      } else {
+        const validResp = JSON.stringify({
+          valid: true,
+        });
+        res.status(200).send(validResp);
+      }
+    } catch (error) {
+      res.status(400).send(errorResp);
+    }
+  });
+};
+
 // Middlewares.
 const middlewareLogResponses = (
   req: Request,
@@ -61,7 +95,9 @@ app.get("/api/healthz", handleReadiness);
 
 app.use("/admin/metrics", handleCounts);
 
-app.get("/admin/reset", handleResetCount);
+app.post("/admin/reset", handleResetCount);
+
+app.post("/api/validate_chirp", handleValidation);
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
