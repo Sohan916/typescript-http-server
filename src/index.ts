@@ -25,37 +25,25 @@ const handleResetCount = (req: Request, res: Response) => {
 };
 
 const handleValidation = (req: Request, res: Response) => {
-  let body = "";
+  type parameters = {
+    body: string;
+  };
 
-  req.on("data", (chunk) => {
-    body += chunk;
-  });
+  const params: parameters = req.body;
 
-  req.on("end", () => {
+  const maxChirpLength = 140;
+  if (params.body.length > maxChirpLength) {
     let errorResp = JSON.stringify({
-      error: "Something went wrong",
+      error: "Chirp is too long",
     });
+    res.status(400).send(errorResp);
+    return;
+  }
 
-    try {
-      const parsedBody = JSON.parse(body);
-      res.header("Content-Type", "application/json");
-
-      console.log(parsedBody);
-      if (parsedBody.body.length > 140) {
-        errorResp = JSON.stringify({
-          error: "Chirp is too long",
-        });
-        res.status(400).send(errorResp);
-      } else {
-        const validResp = JSON.stringify({
-          valid: true,
-        });
-        res.status(200).send(validResp);
-      }
-    } catch (error) {
-      res.status(400).send(errorResp);
-    }
+  const validResp = JSON.stringify({
+    valid: true,
   });
+  res.status(200).send(validResp);
 };
 
 // Middlewares.
@@ -89,11 +77,13 @@ const PORT = 8080;
 
 app.use(middlewareLogResponses);
 
+app.use(express.json());
+
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
 
-app.get("/api/healthz", handleReadiness);
-
 app.use("/admin/metrics", handleCounts);
+
+app.get("/api/healthz", handleReadiness);
 
 app.post("/admin/reset", handleResetCount);
 
