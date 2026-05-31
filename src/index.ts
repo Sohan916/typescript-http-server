@@ -32,6 +32,7 @@ const handleValidation = (req: Request, res: Response) => {
   const params: parameters = req.body;
 
   const maxChirpLength = 140;
+
   if (params.body.length > maxChirpLength) {
     let errorResp = JSON.stringify({
       error: "Chirp is too long",
@@ -40,8 +41,32 @@ const handleValidation = (req: Request, res: Response) => {
     return;
   }
 
+  const censorWords = (text: string, replaceText: string[]) => {
+    let newText = text;
+    replaceText.forEach((element) => {
+      let newReplaceText = element.toLowerCase();
+      if (text.toLowerCase().includes(newReplaceText)) {
+        let textArray = newText.split(" ");
+        let newArray = [...textArray];
+        for (let i = 0; i < newArray.length; i++) {
+          if (newArray[i].toLowerCase() === newReplaceText) {
+            newArray[i] = "****";
+          }
+        }
+        newText = newArray.join(" ");
+      }
+    });
+    return newText;
+  };
+
+  const cleanedText = censorWords(params.body, [
+    "kerfuffle",
+    "sharbert",
+    "fornax",
+  ]);
+
   const validResp = JSON.stringify({
-    valid: true,
+    cleanedBody: cleanedText,
   });
   res.status(200).send(validResp);
 };
