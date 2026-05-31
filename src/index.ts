@@ -34,11 +34,7 @@ const handleValidation = (req: Request, res: Response) => {
   const maxChirpLength = 140;
 
   if (params.body.length > maxChirpLength) {
-    let errorResp = JSON.stringify({
-      error: "Chirp is too long",
-    });
-    res.status(400).send(errorResp);
-    return;
+    throw new Error();
   }
 
   const censorWords = (text: string, replaceText: string[]) => {
@@ -96,6 +92,18 @@ const middlewareMetricsInc = (
   next();
 };
 
+const errorHandlerMiddleware = (
+  err: Error,
+  req: Request,
+  res: Response,
+  next: VoidFunction,
+) => {
+  console.error(err);
+  res.status(500).json({
+    error: "Something went wrong on our end",
+  });
+};
+
 // App.
 const app = express();
 const PORT = 8080;
@@ -112,7 +120,15 @@ app.get("/api/healthz", handleReadiness);
 
 app.post("/admin/reset", handleResetCount);
 
-app.post("/api/validate_chirp", handleValidation);
+app.post("/api/validate_chirp", async (req, res, next) => {
+  try {
+    await handleValidation(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.use(errorHandlerMiddleware);
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
