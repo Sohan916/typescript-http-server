@@ -1,5 +1,11 @@
 import express, { type Request, type Response } from "express";
 import { config } from "./config.js";
+import {
+  BadRequestError,
+  NotFoundError,
+  UserForbiddenError,
+  UserNotAuthenticatedError,
+} from "./app/errors.js";
 
 // Handlers.
 const handleReadiness = (req: Request, res: Response) => {
@@ -34,7 +40,9 @@ const handleValidation = (req: Request, res: Response) => {
   const maxChirpLength = 140;
 
   if (params.body.length > maxChirpLength) {
-    throw new Error();
+    throw new BadRequestError(
+      `Chirp is too long. Max length is ${maxChirpLength}`,
+    );
   }
 
   const censorWords = (text: string, replaceText: string[]) => {
@@ -92,16 +100,32 @@ const middlewareMetricsInc = (
   next();
 };
 
-const errorHandlerMiddleware = (
+const errorMiddleware = (
   err: Error,
   req: Request,
   res: Response,
   next: VoidFunction,
 ) => {
-  console.error(err);
-  res.status(500).json({
-    error: "Something went wrong on our end",
-  });
+  let statusCode = 500;
+  let message = "Something went wrong on our end";
+
+  if (err instanceof BadRequestError) {
+    statusCode = 400;
+    message = err.message;
+  } else if (err instanceof UserNotAuthenticatedError) {
+    statusCode = 401;
+    message = err.message;
+  } else if (err instanceof UserForbiddenError) {
+    statusCode = 403;
+    message = err.message;
+  } else if (err instanceof NotFoundError) {
+    statusCode = 404;
+    message = err.message;
+  }
+
+  if (statusCode >= 500) {
+    console.log(err.message);
+  }
 };
 
 // App.
@@ -146,7 +170,7 @@ app.post("/api/validate_chirp", async (req, res, next) => {
   }
 });
 
-app.use(errorHandlerMiddleware);
+app.use(errorMiddleware);
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
