@@ -114,11 +114,29 @@ app.use(express.json());
 
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
 
-app.use("/admin/metrics", handleCounts);
+app.use("/admin/metrics", async (req, res, next) => {
+  try {
+    await handleCounts(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 
-app.get("/api/healthz", handleReadiness);
+app.get("/api/healthz", async (req, res, next) => {
+  try {
+    await handleReadiness(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 
-app.post("/admin/reset", handleResetCount);
+app.post("/admin/reset", async (req, res, next) => {
+  try {
+    await handleResetCount(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.post("/api/validate_chirp", async (req, res, next) => {
   try {
