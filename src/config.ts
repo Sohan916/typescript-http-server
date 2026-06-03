@@ -8,6 +8,7 @@ type Config = {
 type APIConfig = {
   fileServerHits: number;
   port: number;
+  platform: string;
 };
 
 type DBConfig = {
@@ -17,7 +18,7 @@ type DBConfig = {
 
 process.loadEnvFile();
 
-const envOrThrow = (key: string) => {
+export const envOrThrow = (key: string) => {
   const value = process.env[key];
   if (!value) {
     throw new Error(`Environment variable ${key} not present`);
@@ -33,6 +34,7 @@ export const config: Config = {
   api: {
     fileServerHits: 0,
     port: Number(envOrThrow("PORT")),
+    platform: envOrThrow("PLATFORM"),
   },
   db: {
     url: envOrThrow("DB_URL"),
