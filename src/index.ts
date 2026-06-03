@@ -1,5 +1,5 @@
 import express, { type Request, type Response } from "express";
-import { config } from "./config.js";
+import { config, envOrThrow } from "./config.js";
 import {
   BadRequestError,
   NotFoundError,
@@ -9,6 +9,7 @@ import {
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { createUser, deleteAllUsers } from "./db/queries/users.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -31,7 +32,13 @@ const handleCounts = (req: Request, res: Response) => {
   res.send(html);
 };
 
-const handleResetCount = (req: Request, res: Response) => {
+const handleReset = async (req: Request, res: Response) => {
+  if (envOrThrow("PLATFORM") !== "dev") {
+    console.log(config.api.platform);
+    throw new UserForbiddenError("Reset is only allowed in dev environment.");
+  }
+
+  await deleteAllUsers();
   config.api.fileServerHits = 0;
   res.send();
 };
@@ -79,6 +86,34 @@ const handleValidation = (req: Request, res: Response) => {
     cleanedBody: cleanedText,
   });
   res.status(200).send(validResp);
+};
+
+const handleCreateUser = async (req: Request, res: Response) => {
+  type parameters = {
+    email: string;
+  };
+
+  const params: parameters = req.body;
+
+  if (!params.email) {
+    throw new BadRequestError("Missing required fields");
+  }
+
+  const user = {
+    email: params.email,
+  };
+
+  if (!params.email) {
+    throw new BadRequestError("Missing required fields");
+  }
+
+  const createdUser = await createUser(user);
+
+  if (!user) {
+    throw new Error("Could not create user");
+  }
+
+  res.status(201).json(createdUser);
 };
 
 // Middlewares.
@@ -132,6 +167,8 @@ const errorMiddleware = (
   if (statusCode >= 500) {
     console.log(err.message);
   }
+
+  res.status(statusCode).json({ error: message });
 };
 
 // App.
@@ -161,7 +198,7 @@ app.get("/api/healthz", async (req, res, next) => {
 
 app.post("/admin/reset", async (req, res, next) => {
   try {
-    await handleResetCount(req, res);
+    await handleReset(req, res);
   } catch (err) {
     next(err);
   }
@@ -170,6 +207,14 @@ app.post("/admin/reset", async (req, res, next) => {
 app.post("/api/validate_chirp", async (req, res, next) => {
   try {
     await handleValidation(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/users", async (req, res, next) => {
+  try {
+    await handleCreateUser(req, res);
   } catch (err) {
     next(err);
   }
