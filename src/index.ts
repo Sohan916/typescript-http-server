@@ -6,6 +6,12 @@ import {
   UserForbiddenError,
   UserNotAuthenticatedError,
 } from "./app/errors.js";
+import postgres from "postgres";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { drizzle } from "drizzle-orm/postgres-js";
+
+const migrationClient = postgres(config.db.url, { max: 1 });
+await migrate(drizzle(migrationClient), config.db.migrationConfig);
 
 // Handlers.
 const handleReadiness = (req: Request, res: Response) => {
@@ -19,14 +25,14 @@ const handleCounts = (req: Request, res: Response) => {
   const html = `<html>
   <body>
     <h1>Welcome, Chirpy Admin</h1>
-    <p>Chirpy has been visited ${config.fileserverHits} times!</p>
+    <p>Chirpy has been visited ${config.api.fileServerHits} times!</p>
   </body>
 </html>`;
   res.send(html);
 };
 
 const handleResetCount = (req: Request, res: Response) => {
-  config.fileserverHits = 0;
+  config.api.fileServerHits = 0;
   res.send();
 };
 
@@ -96,7 +102,7 @@ const middlewareMetricsInc = (
   res: Response,
   next: VoidFunction,
 ) => {
-  config.fileserverHits++;
+  config.api.fileServerHits++;
   next();
 };
 
@@ -130,7 +136,6 @@ const errorMiddleware = (
 
 // App.
 const app = express();
-const PORT = 8080;
 
 app.use(middlewareLogResponses);
 
@@ -172,6 +177,6 @@ app.post("/api/validate_chirp", async (req, res, next) => {
 
 app.use(errorMiddleware);
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+app.listen(config.api.port, () => {
+  console.log(`Server is running at http://localhost:${config.api.port}`);
 });
