@@ -10,6 +10,7 @@ import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { createUser, deleteAllUsers } from "./db/queries/users.js";
+import { createChirp } from "./db/queries/chirps.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -43,9 +44,10 @@ const handleReset = async (req: Request, res: Response) => {
   res.send();
 };
 
-const handleValidation = (req: Request, res: Response) => {
+const handleValidation = async (req: Request, res: Response) => {
   type parameters = {
     body: string;
+    userId: string;
   };
 
   const params: parameters = req.body;
@@ -82,10 +84,14 @@ const handleValidation = (req: Request, res: Response) => {
     "fornax",
   ]);
 
-  const validResp = JSON.stringify({
-    cleanedBody: cleanedText,
-  });
-  res.status(200).send(validResp);
+  const chirp = {
+    body: cleanedText,
+    userId: params.userId,
+  };
+
+  const createdChirp = await createChirp(chirp);
+
+  res.status(201).send(createdChirp);
 };
 
 const handleCreateUser = async (req: Request, res: Response) => {
@@ -204,7 +210,7 @@ app.post("/admin/reset", async (req, res, next) => {
   }
 });
 
-app.post("/api/validate_chirp", async (req, res, next) => {
+app.post("/api/chirps", async (req, res, next) => {
   try {
     await handleValidation(req, res);
   } catch (err) {
