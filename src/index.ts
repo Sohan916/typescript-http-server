@@ -10,7 +10,7 @@ import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { createUser, deleteAllUsers } from "./db/queries/users.js";
-import { createChirp } from "./db/queries/chirps.js";
+import { createChirp, getChirps } from "./db/queries/chirps.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -122,6 +122,12 @@ const handleCreateUser = async (req: Request, res: Response) => {
   res.status(201).json(createdUser);
 };
 
+const handleGetChirps = async (req: Request, res: Response) => {
+  const chirps = await getChirps();
+  console.log(chirps);
+  res.json(chirps);
+};
+
 // Middlewares.
 const middlewareLogResponses = (
   req: Request,
@@ -197,6 +203,14 @@ app.use("/admin/metrics", async (req, res, next) => {
 app.get("/api/healthz", async (req, res, next) => {
   try {
     await handleReadiness(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/chirps", async (req, res, next) => {
+  try {
+    await handleGetChirps(req, res);
   } catch (err) {
     next(err);
   }
