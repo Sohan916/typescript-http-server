@@ -1,0 +1,1 @@
+ALTER TABLE "users" DROP CONSTRAINT "users_hashed_password_unique";

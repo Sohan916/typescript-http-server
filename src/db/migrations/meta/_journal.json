@@ -15,6 +15,20 @@
       "when": 1780540360127,
       "tag": "0001_mighty_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781336005458,
+      "tag": "0002_remarkable_thor_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781336159359,
+      "tag": "0003_boring_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

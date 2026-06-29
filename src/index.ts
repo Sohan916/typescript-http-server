@@ -9,8 +9,14 @@ import {
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { createUser, deleteAllUsers } from "./db/queries/users.js";
+import {
+  createUser,
+  deleteAllUsers,
+  getUserByEmail,
+} from "./db/queries/users.js";
 import { createChirp, getChirp, getChirps } from "./db/queries/chirps.js";
+import { checkPasswordHash, hashPassword } from "./auth.js";
+import { NewUser } from "./db/schema.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -97,19 +103,18 @@ const handleValidation = async (req: Request, res: Response) => {
 const handleCreateUser = async (req: Request, res: Response) => {
   type parameters = {
     email: string;
+    password: string;
   };
 
   const params: parameters = req.body;
-
-  if (!params.email) {
-    throw new BadRequestError("Missing required fields");
-  }
+  const hashedPassword = await hashPassword(params.password);
 
   const user = {
     email: params.email,
+    hashedPassword: hashedPassword,
   };
 
-  if (!params.email) {
+  if (!params.email || !params.password) {
     throw new BadRequestError("Missing required fields");
   }
 
@@ -139,6 +144,46 @@ const handleGetChirp = async (req: Request, res: Response) => {
     throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
   }
   res.json(chirp);
+};
+
+const handleLoginUser = async (req: Request, res: Response) => {
+  type Parameters = {
+    email: string;
+    password: string;
+  };
+
+  const params: Parameters = req.body;
+
+  const user = {
+    email: params.email,
+    password: params.password,
+  };
+
+  const result = await getUserByEmail(user.email);
+
+  if (!result) {
+    res.status(401).json({ error: "incorrect email or password" });
+    return;
+  }
+
+  const isPasswordMatching = await checkPasswordHash(
+    user.password,
+    result.hashedPassword,
+  );
+
+  if (!isPasswordMatching) {
+    res.status(401).json({ error: "incorrect mail or password" });
+    return;
+  }
+
+  const newResult = {
+    id: result.id,
+    createdAt: result.createdAt,
+    updatedAt: result.updatedAt,
+    email: result.email,
+  };
+
+  res.send(newResult);
 };
 
 // Middlewares.
@@ -255,6 +300,14 @@ app.post("/api/chirps", async (req, res, next) => {
 app.post("/api/users", async (req, res, next) => {
   try {
     await handleCreateUser(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/login", async (req, res, next) => {
+  try {
+    await handleLoginUser(req, res);
   } catch (err) {
     next(err);
   }
