@@ -15,7 +15,14 @@ import {
   getUserByEmail,
 } from "./db/queries/users.js";
 import { createChirp, getChirp, getChirps } from "./db/queries/chirps.js";
-import { checkPasswordHash, hashPassword } from "./auth.js";
+import {
+  checkPasswordHash,
+  getBearerToken,
+  hashPassword,
+  LoginResponse,
+  makeJWT,
+  validateJWT,
+} from "./auth.js";
 import { NewUser } from "./db/schema.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
@@ -56,7 +63,14 @@ const handleValidation = async (req: Request, res: Response) => {
     userId: string;
   };
 
+  const bearerToken = getBearerToken(req);
   const params: parameters = req.body;
+
+  const userID = validateJWT(bearerToken, config.jwt.secret);
+
+  if (!userID) {
+    throw new UserForbiddenError("Incorrect Authentication token");
+  }
 
   const maxChirpLength = 140;
 
@@ -92,7 +106,7 @@ const handleValidation = async (req: Request, res: Response) => {
 
   const chirp = {
     body: cleanedText,
-    userId: params.userId,
+    userId: userID,
   };
 
   const createdChirp = await createChirp(chirp);
@@ -150,6 +164,7 @@ const handleLoginUser = async (req: Request, res: Response) => {
   type Parameters = {
     email: string;
     password: string;
+    expiresIn?: number | undefined;
   };
 
   const params: Parameters = req.body;
@@ -176,12 +191,20 @@ const handleLoginUser = async (req: Request, res: Response) => {
     return;
   }
 
+  let duration = config.jwt.defaultDuration;
+  if (params.expiresIn && !(params.expiresIn > config.jwt.defaultDuration)) {
+    duration = params.expiresIn;
+  }
+
+  const accessToken = makeJWT(result.id, duration, config.jwt.secret);
+
   const newResult = {
     id: result.id,
     createdAt: result.createdAt,
     updatedAt: result.updatedAt,
     email: result.email,
-  };
+    token: accessToken,
+  } satisfies LoginResponse;
 
   res.send(newResult);
 };
