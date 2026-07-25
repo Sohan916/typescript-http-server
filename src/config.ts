@@ -49,7 +49,7 @@ export const config: Config = {
   },
   jwt: {
     defaultDuration: 60 * 60, // 1 hour in seconds
-    secret: envOrThrow("JWT_SECRET"),
+    secret: envOrThrow("JWT_KEY"),
     issuer: "chirpy",
   },
 };

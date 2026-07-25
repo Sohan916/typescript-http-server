@@ -21,9 +21,14 @@ import {
   hashPassword,
   LoginResponse,
   makeJWT,
+  makeRefreshToken,
   validateJWT,
 } from "./auth.js";
-import { NewUser } from "./db/schema.js";
+import {
+  createRefreshToken,
+  getUserFromRefreshToken,
+  updateUserFromRefreshToken,
+} from "./db/queries/refresh-tokens.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -164,7 +169,6 @@ const handleLoginUser = async (req: Request, res: Response) => {
   type Parameters = {
     email: string;
     password: string;
-    expiresIn?: number | undefined;
   };
 
   const params: Parameters = req.body;
@@ -191,12 +195,17 @@ const handleLoginUser = async (req: Request, res: Response) => {
     return;
   }
 
-  let duration = config.jwt.defaultDuration;
-  if (params.expiresIn && !(params.expiresIn > config.jwt.defaultDuration)) {
-    duration = params.expiresIn;
-  }
+  let duration = 3600;
 
   const accessToken = makeJWT(result.id, duration, config.jwt.secret);
+  const refreshTokenExpiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+
+  const refresh = await createRefreshToken({
+    token: makeRefreshToken(),
+    userId: result.id,
+    expiresAt: refreshTokenExpiry,
+    revokedAt: null,
+  });
 
   const newResult = {
     id: result.id,
@@ -204,9 +213,46 @@ const handleLoginUser = async (req: Request, res: Response) => {
     updatedAt: result.updatedAt,
     email: result.email,
     token: accessToken,
+    refreshToken: refresh.token,
   } satisfies LoginResponse;
 
   res.send(newResult);
+};
+
+const handleRefresh = async (req: Request, res: Response) => {
+  const bearerToken = getBearerToken(req);
+
+  const user = await getUserFromRefreshToken(bearerToken);
+
+  if (
+    user === undefined ||
+    user.revokedAt !== null ||
+    user.expiresAt < new Date(Date.now())
+  ) {
+    res.status(401).json({ error: "Refresh token does not exist" });
+    return;
+  }
+
+  let duration = 3600;
+
+  const accessToken = makeJWT(user.userId, duration, config.jwt.secret);
+
+  res.status(200).send({
+    token: accessToken,
+  });
+};
+
+const handleRevoke = async (req: Request, res: Response) => {
+  const bearerToken = getBearerToken(req);
+
+  const refreshToken = await getUserFromRefreshToken(bearerToken);
+
+  refreshToken.revokedAt = new Date(Date.now());
+  refreshToken.updatedAt = refreshToken.revokedAt;
+
+  updateUserFromRefreshToken(refreshToken.token, refreshToken);
+
+  res.status(204).send();
 };
 
 // Middlewares.
@@ -331,6 +377,22 @@ app.post("/api/users", async (req, res, next) => {
 app.post("/api/login", async (req, res, next) => {
   try {
     await handleLoginUser(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/refresh", async (req, res, next) => {
+  try {
+    await handleRefresh(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/revoke", async (req, res, next) => {
+  try {
+    await handleRevoke(req, res);
   } catch (err) {
     next(err);
   }

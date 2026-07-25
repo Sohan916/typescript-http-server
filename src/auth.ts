@@ -8,9 +8,11 @@ import {
 } from "./app/errors.js";
 import { Request } from "express";
 import { UserResponse } from "./db/queries/users.js";
+import { randomBytes } from "node:crypto";
 
 export type LoginResponse = UserResponse & {
   token: string;
+  refreshToken: string;
 };
 
 const TOKEN_ISSUER = "chirpy";
@@ -80,4 +82,8 @@ export function extractBearerToken(header: string) {
     throw new BadRequestError("Malformed authorization header");
   }
   return splitAuth[1];
+}
+
+export function makeRefreshToken() {
+  return randomBytes(32).toString("hex");
 }
