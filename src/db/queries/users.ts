@@ -22,3 +22,10 @@ export async function getUserByEmail(email: string) {
 
   return result;
 }
+
+export async function updateUserById(userId: string, value: Partial<NewUser>) {
+  const [result] = await db
+    .update(users)
+    .set(value)
+    .where(eq(users.id, userId));
+}

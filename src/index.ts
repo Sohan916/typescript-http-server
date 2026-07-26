@@ -13,6 +13,7 @@ import {
   createUser,
   deleteAllUsers,
   getUserByEmail,
+  updateUserById,
 } from "./db/queries/users.js";
 import { createChirp, getChirp, getChirps } from "./db/queries/chirps.js";
 import {
@@ -62,7 +63,7 @@ const handleReset = async (req: Request, res: Response) => {
   res.send();
 };
 
-const handleValidation = async (req: Request, res: Response) => {
+const handleChirpSubmission = async (req: Request, res: Response) => {
   type parameters = {
     body: string;
     userId: string;
@@ -255,6 +256,49 @@ const handleRevoke = async (req: Request, res: Response) => {
   res.status(204).send();
 };
 
+const handleUserUpdate = async (req: Request, res: Response) => {
+  const bearerToken = getBearerToken(req);
+
+  const userID = validateJWT(bearerToken, config.jwt.secret);
+
+  if (!userID) {
+    res.status(401).send();
+    return;
+  }
+
+  type Parameters = {
+    email: string;
+    password: string;
+  };
+
+  const params: Parameters = req.body;
+
+  if (!params.email || !params.password) {
+    throw new BadRequestError("Missing required fields");
+  }
+
+  const hashedPassword = await hashPassword(params.password);
+
+  const user = {
+    email: params.email,
+    hashedPassword: hashedPassword,
+  };
+
+  if (!user) {
+    throw new Error("Could not update user");
+  }
+
+  await updateUserById(userID, user);
+  const updatedUser = await getUserByEmail(user.email);
+
+  res.status(200).send({
+    id: updatedUser.id,
+    createdAt: updatedUser.createdAt,
+    updatedAt: updatedUser.updatedAt,
+    email: updatedUser.email,
+  });
+};
+
 // Middlewares.
 const middlewareLogResponses = (
   req: Request,
@@ -360,7 +404,7 @@ app.post("/admin/reset", async (req, res, next) => {
 
 app.post("/api/chirps", async (req, res, next) => {
   try {
-    await handleValidation(req, res);
+    await handleChirpSubmission(req, res);
   } catch (err) {
     next(err);
   }
@@ -393,6 +437,14 @@ app.post("/api/refresh", async (req, res, next) => {
 app.post("/api/revoke", async (req, res, next) => {
   try {
     await handleRevoke(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.put("/api/users", async (req, res, next) => {
+  try {
+    await handleUserUpdate(req, res);
   } catch (err) {
     next(err);
   }
