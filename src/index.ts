@@ -15,7 +15,12 @@ import {
   getUserByEmail,
   updateUserById,
 } from "./db/queries/users.js";
-import { createChirp, getChirp, getChirps } from "./db/queries/chirps.js";
+import {
+  createChirp,
+  deleteChirp,
+  getChirp,
+  getChirps,
+} from "./db/queries/chirps.js";
 import {
   checkPasswordHash,
   getBearerToken,
@@ -164,6 +169,34 @@ const handleGetChirp = async (req: Request, res: Response) => {
     throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
   }
   res.json(chirp);
+};
+
+const handleDeleteChirp = async (req: Request, res: Response) => {
+  const chirpId = req.params.chirpId;
+
+  if (typeof chirpId !== "string") {
+    throw new BadRequestError("Invalid chirp ID");
+  }
+  const bearerToken = getBearerToken(req);
+  const userID = validateJWT(bearerToken, config.jwt.secret);
+
+  const chirp = await getChirp(chirpId);
+  if (!chirp) {
+    throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
+  }
+
+  if (userID !== chirp.userId) {
+    res.status(403).send();
+    return;
+  }
+
+  const deletedChirp = await deleteChirp(chirpId);
+
+  if (!deletedChirp) {
+    throw new NotFoundError(`Chirp with chirpId: ${chirpId} not found`);
+  }
+
+  res.status(204).send();
 };
 
 const handleLoginUser = async (req: Request, res: Response) => {
@@ -445,6 +478,14 @@ app.post("/api/revoke", async (req, res, next) => {
 app.put("/api/users", async (req, res, next) => {
   try {
     await handleUserUpdate(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete("/api/chirps/:chirpId", async (req, res, next) => {
+  try {
+    await handleDeleteChirp(req, res);
   } catch (err) {
     next(err);
   }
