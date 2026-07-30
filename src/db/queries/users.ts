@@ -29,3 +29,13 @@ export async function updateUserById(userId: string, value: Partial<NewUser>) {
     .set(value)
     .where(eq(users.id, userId));
 }
+
+export async function updateChirpyToRed(id: string) {
+  const [result] = await db
+    .update(users)
+    .set({ isChirpyRed: true })
+    .where(eq(users.id, id))
+    .returning();
+
+  return result;
+}

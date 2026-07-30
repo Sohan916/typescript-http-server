@@ -43,6 +43,13 @@
       "when": 1785260581874,
       "tag": "0005_curved_luminals",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785344135161,
+      "tag": "0006_steady_gambit",
+      "breakpoints": true
     }
   ]
 }

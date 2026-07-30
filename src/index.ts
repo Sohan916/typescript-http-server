@@ -13,6 +13,7 @@ import {
   createUser,
   deleteAllUsers,
   getUserByEmail,
+  updateChirpyToRed,
   updateUserById,
 } from "./db/queries/users.js";
 import {
@@ -248,6 +249,7 @@ const handleLoginUser = async (req: Request, res: Response) => {
     email: result.email,
     token: accessToken,
     refreshToken: refresh.token,
+    isChirpyRed: result.isChirpyRed,
   } satisfies LoginResponse;
 
   res.send(newResult);
@@ -330,6 +332,30 @@ const handleUserUpdate = async (req: Request, res: Response) => {
     updatedAt: updatedUser.updatedAt,
     email: updatedUser.email,
   });
+};
+
+const handlePolkaWebhook = async (req: Request, res: Response) => {
+  type Parameters = {
+    event: string;
+    data: {
+      userId: string;
+    };
+  };
+
+  const params: Parameters = req.body;
+
+  if (params.event !== "user.upgraded") {
+    res.status(204).send();
+    return;
+  }
+
+  const chirp = await updateChirpyToRed(params.data.userId);
+
+  if (!chirp) {
+    throw new NotFoundError(`Chirp not found`);
+  }
+
+  res.status(204).send();
 };
 
 // Middlewares.
@@ -470,6 +496,14 @@ app.post("/api/refresh", async (req, res, next) => {
 app.post("/api/revoke", async (req, res, next) => {
   try {
     await handleRevoke(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/polka/webhooks", async (req, res, next) => {
+  try {
+    await handlePolkaWebhook(req, res);
   } catch (err) {
     next(err);
   }
