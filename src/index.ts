@@ -24,6 +24,7 @@ import {
 } from "./db/queries/chirps.js";
 import {
   checkPasswordHash,
+  getAPIKey,
   getBearerToken,
   hashPassword,
   LoginResponse,
@@ -347,6 +348,12 @@ const handlePolkaWebhook = async (req: Request, res: Response) => {
   if (params.event !== "user.upgraded") {
     res.status(204).send();
     return;
+  }
+
+  const key = getAPIKey(req);
+
+  if (key !== config.api.polkaKey) {
+    throw new UserNotAuthenticatedError("User not authenticated");
   }
 
   const chirp = await updateChirpyToRed(params.data.userId);
