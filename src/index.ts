@@ -20,6 +20,7 @@ import {
   createChirp,
   deleteChirp,
   getChirp,
+  getChirpByAuthorId,
   getChirps,
 } from "./db/queries/chirps.js";
 import {
@@ -155,6 +156,15 @@ const handleCreateUser = async (req: Request, res: Response) => {
 };
 
 const handleGetChirps = async (req: Request, res: Response) => {
+  let authorId = "";
+  let authorIdQuery = req.query.authorId;
+  if (typeof authorIdQuery === "string") {
+    authorId = authorIdQuery;
+    const chirps = await getChirpByAuthorId(authorId);
+    res.json(chirps);
+    return;
+  }
+
   const chirps = await getChirps();
   res.json(chirps);
 };
@@ -452,6 +462,7 @@ app.get("/api/chirps", async (req, res, next) => {
     next(err);
   }
 });
+
 app.get("/api/chirps/:chirpId", async (req, res, next) => {
   try {
     await handleGetChirp(req, res);
