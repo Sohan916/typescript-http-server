@@ -18,9 +18,9 @@ import {
 } from "./db/queries/users.js";
 import {
   createChirp,
+  deleteAllChirps,
   deleteChirp,
   getChirp,
-  getChirpByAuthorId,
   getChirps,
 } from "./db/queries/chirps.js";
 import {
@@ -67,6 +67,7 @@ const handleReset = async (req: Request, res: Response) => {
   }
 
   await deleteAllUsers();
+  await deleteAllChirps();
   config.api.fileServerHits = 0;
   res.send();
 };
@@ -160,13 +161,25 @@ const handleGetChirps = async (req: Request, res: Response) => {
   let authorIdQuery = req.query.authorId;
   if (typeof authorIdQuery === "string") {
     authorId = authorIdQuery;
-    const chirps = await getChirpByAuthorId(authorId);
-    res.json(chirps);
-    return;
   }
 
-  const chirps = await getChirps();
-  res.json(chirps);
+  let sort = "asc";
+  let sortQuery = req.query.sort;
+  if (typeof sortQuery === "string") {
+    sort = sortQuery;
+  }
+
+  const chirps = await getChirps(authorId);
+
+  const newChirps = chirps?.sort((a, b) => {
+    if (sort === "desc") {
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    } else {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    }
+  });
+
+  res.json(newChirps);
 };
 
 const handleGetChirp = async (req: Request, res: Response) => {
